@@ -15,6 +15,8 @@ param kind string = 'StorageV2'
 param minimumTlsVersion string = 'TLS1_2'
 @allowed([ 'Enabled', 'Disabled' ])
 param publicNetworkAccess string = 'Disabled'
+@allowed([ 'Allow', 'Deny' ])
+param networkAclsDefaultAction string = 'Deny'
 param sku object = { name: 'Standard_LRS' }
 
 param containers array = []
@@ -35,7 +37,7 @@ resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' = {
     minimumTlsVersion: minimumTlsVersion
     networkAcls: {
       bypass: 'AzureServices'
-      defaultAction: 'Allow'
+      defaultAction: networkAclsDefaultAction
     }
     publicNetworkAccess: publicNetworkAccess
   }
