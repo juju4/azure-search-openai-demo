@@ -6,7 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  # to upload sarif files
+  security-events: write
 
 jobs:
   build:
@@ -56,11 +58,24 @@ jobs:
           set -x
           for f in `find . -iname '*.bicep'`; do az bicep build -f $f; done
         if: ${{ always() }}
-      - name: Checkov scan
-        run: |
-          checkov -d . --framework arm bicep
-          exit $RET
+      - name: Checkov GitHub Action
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          # This will add both a CLI output to the console and create a results.sarif file
+          output_format: cli,sarif
+          output_file_path: console,results.sarif
+          soft_fail: true
         if: ${{ always() }}
+      - name: Upload checkov SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        # Results are generated only on a success or failure
+        # this is required since GitHub by default won't run the next step
+        # when the previous one has failed. Security checks that do not pass will 'fail'.
+        # An alternative is to add `continue-on-error: true` to the previous step
+        # Or 'soft_fail: true' to checkov.
+        if: success() || failure()
+        with:
+          sarif_file: results.sarif
       - name: Run PSRule analysis
         uses: microsoft/ps-rule@main
         if: ${{ always() }}
@@ -68,3 +83,7 @@ jobs:
         uses: microsoft/security-devops-action@v1
         id: msdo
         if: ${{ always() }}
+      - name: Upload msdo results to Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: ${{ steps.msdo.outputs.sarifFile }}
